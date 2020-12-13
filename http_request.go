@@ -44,6 +44,9 @@ func (w *HttpRequest) Get(payload interface{}) error {
 		w.Headers = mp.New()
 	}
 	resp, err := w.Client().Get(w.Url, payload, w.Headers)
+	if err != nil {
+		return err
+	}
 	w.Response = resp
 	w.Log(payload, err)
 	return err
@@ -79,6 +82,9 @@ func (w *HttpRequest) PostJson(payload interface{}) error {
 		w.Headers = mp.New()
 	}
 	resp, err := w.Client().PostJson(w.Url, payload, w.Headers)
+	if err != nil {
+		return err
+	}
 	w.Response = resp
 	return err
 }
@@ -88,6 +94,9 @@ func (w *HttpRequest) GetJson(payload interface{}) error {
 		w.Headers = mp.New()
 	}
 	resp, err := w.Client().GetJson(w.Url, payload, w.Headers)
+	if err != nil {
+		return err
+	}
 	w.Response = resp
 	w.Log(payload, err)
 	return err
@@ -98,6 +107,9 @@ func (w *HttpRequest) Post(payload interface{}) error {
 		w.Headers = mp.New()
 	}
 	resp, err := w.Client().Post(w.Url, payload, w.Headers)
+	if err != nil {
+		return err
+	}
 	w.Response = resp
 	w.Log(payload, err)
 	return err
