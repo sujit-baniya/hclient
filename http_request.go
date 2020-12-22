@@ -1,8 +1,10 @@
 package hclient
 
 import (
+	"bytes"
 	mp "github.com/m-murad/ordered-sync-map"
 	"github.com/sujit-baniya/log"
+	"github.com/sujit-baniya/utils"
 	"github.com/sujit-baniya/utils/pool"
 	"github.com/sujit-baniya/xid"
 	"io/ioutil"
@@ -21,6 +23,8 @@ type HttpRequest struct {
 	ReqPerSec    int
 	MaxPoolSize  int
 	Response     *http.Response
+	Error        error
+	Status       int
 	client       *Client
 }
 
@@ -39,24 +43,40 @@ func (w *HttpRequest) Client() *Client {
 	return w.client
 }
 
-func (w *HttpRequest) Get(payload interface{}) error {
+func (w *HttpRequest) Get(payload interface{}) *HttpRequest {
+	var y *HttpRequest
 	if w.Headers == nil {
 		w.Headers = mp.New()
 	}
 	resp, err := w.Client().Get(w.Url, payload, w.Headers)
+	y = w
+	y.Response = resp
+	y.Error = err
 	if err != nil {
-		return err
+		y.Log(payload, err)
+		return y
 	}
-	w.Response = resp
-	w.Log(payload, err)
-	return err
+
+	y.Log(payload, nil)
+	return y
 }
 
 func (w *HttpRequest) Log(payload interface{}, err error) {
+	req, _ := utils.Json.Marshal(payload)
 	mu.RLock()
 
 	var e *log.Entry
-	resp, _ := ioutil.ReadAll(w.Response.Body)
+	response := ""
+	statusCode := 20
+	if w.Response != nil {
+		resp, _ := ioutil.ReadAll(w.Response.Body)
+		response = string(resp)
+		statusCode = w.Response.StatusCode
+		e = log.Info()
+	} else {
+		e = log.Error()
+	}
+
 	if err != nil {
 		e = log.Error()
 	} else {
@@ -66,53 +86,72 @@ func (w *HttpRequest) Log(payload interface{}, err error) {
 	w.Headers.UnorderedRange(func(key interface{}, value interface{}) {
 		headers[key.(string)] = value.(string)
 	})
+	head, _ := utils.Json.Marshal(headers)
 	e.
 		Str("request_id", xid.New().String()).
 		Str("url", w.Url).
-		Interface("request_payload", payload).
-		Interface("request_header", headers).
-		Int("status", w.Response.StatusCode).
-		Str("response", string(resp)).
+		RawJSON("request_payload", req).
+		RawJSON("request_header", head).
+		Int("status", statusCode).
+		Str("response", response).
 		Msg("Client Response")
 	mu.RUnlock()
 }
 
-func (w *HttpRequest) PostJson(payload interface{}) error {
+func (w *HttpRequest) PostJson(payload interface{}) *HttpRequest {
+	req, _ := utils.Json.Marshal(payload)
+	var y *HttpRequest
 	if w.Headers == nil {
 		w.Headers = mp.New()
 	}
-	resp, err := w.Client().PostJson(w.Url, payload, w.Headers)
+	resp, err := w.Client().PostJson(w.Url, bytes.NewBufferString(string(req)), w.Headers)
+	y = w
+	y.Response = resp
+	y.Error = err
 	if err != nil {
-		return err
+		y.Log(payload, err)
+		return y
 	}
-	w.Response = resp
-	return err
+	y.Log(payload, nil)
+	return y
 }
 
-func (w *HttpRequest) GetJson(payload interface{}) error {
+func (w *HttpRequest) GetJson(payload interface{}) *HttpRequest {
+	var y *HttpRequest
 	if w.Headers == nil {
 		w.Headers = mp.New()
 	}
 	resp, err := w.Client().GetJson(w.Url, payload, w.Headers)
+	y = w
+	y.Response = resp
+	y.Error = err
 	if err != nil {
-		return err
+		y.Log(payload, err)
+		return y
 	}
-	w.Response = resp
-	w.Log(payload, err)
-	return err
+
+	y.Log(payload, nil)
+	return y
 }
 
-func (w *HttpRequest) Post(payload interface{}) error {
+func (w *HttpRequest) Post(payload interface{}) *HttpRequest {
+	req, _ := utils.Json.Marshal(payload)
+	var y *HttpRequest
 	if w.Headers == nil {
 		w.Headers = mp.New()
 	}
-	resp, err := w.Client().Post(w.Url, payload, w.Headers)
+	resp, err := w.Client().Post(w.Url, bytes.NewBufferString(string(req)), w.Headers)
+
+	y = w
+	y.Response = resp
+	y.Error = err
 	if err != nil {
-		return err
+		y.Log(payload, err)
+		return y
 	}
-	w.Response = resp
-	w.Log(payload, err)
-	return err
+
+	y.Log(payload, nil)
+	return y
 }
 
 func (w *HttpRequest) AsyncGet(payload interface{}) pool.WorkFunc {
@@ -121,9 +160,9 @@ func (w *HttpRequest) AsyncGet(payload interface{}) pool.WorkFunc {
 			return nil, nil
 		}
 
-		err := w.Get(payload)
-		if err != nil {
-			panic(err)
+		response := w.Get(payload)
+		if response.Error != nil {
+			return nil, response.Error
 		}
 		return w, nil
 	}
@@ -135,9 +174,9 @@ func (w *HttpRequest) AsyncPostJson(payload interface{}) pool.WorkFunc {
 			return nil, nil
 		}
 
-		err := w.PostJson(payload)
-		if err != nil {
-			panic(err)
+		response := w.PostJson(payload)
+		if response.Error != nil {
+			return nil, response.Error
 		}
 		return w, nil
 	}
@@ -148,9 +187,9 @@ func (w *HttpRequest) AsyncGetJson(payload interface{}) pool.WorkFunc {
 		if wu.IsCancelled() {
 			return nil, nil
 		}
-		err := w.GetJson(payload)
-		if err != nil {
-			panic(err)
+		response := w.GetJson(payload)
+		if response.Error != nil {
+			return nil, response.Error
 		}
 		return w, nil
 	}
@@ -162,9 +201,9 @@ func (w *HttpRequest) AsyncPost(payload interface{}) pool.WorkFunc {
 			return nil, nil
 		}
 
-		err := w.Post(payload)
-		if err != nil {
-			panic(err)
+		response := w.Post(payload)
+		if response.Error != nil {
+			return nil, response.Error
 		}
 		return w, nil
 	}

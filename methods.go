@@ -1,6 +1,7 @@
 package hclient
 
 import (
+	"bytes"
 	"github.com/hetiansu5/urlquery"
 	mp "github.com/m-murad/ordered-sync-map"
 	"net/http"
@@ -13,9 +14,9 @@ var mu sync.RWMutex
 
 // Get is a convenience helper for doing simple GET requests.
 func (c *Client) Get(url string, body interface{}, headers *mp.Map) (*http.Response, error) {
-	bytes, _ := urlquery.Marshal(body)
-	url = url + "?" + string(bytes)
-	return c.request(http.MethodGet, url, nil, headers)
+	bts, _ := urlquery.Marshal(body)
+	url = url + "?" + string(bts)
+	return c.request(http.MethodGet, url, bytes.NewBufferString(""), headers)
 }
 
 // Get is a convenience helper for doing simple GET requests.
@@ -60,8 +61,5 @@ func (c *Client) request(method string, url string, body interface{}, headers *m
 	headers.UnorderedRange(func(key interface{}, value interface{}) {
 		req.Header.Set(key.(string), value.(string))
 	})
-	/*for key, value := range headers {
-		req.Header.Set(key, value)
-	}*/
 	return c.Do(req)
 }

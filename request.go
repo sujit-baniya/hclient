@@ -71,8 +71,11 @@ func NewRequest(method, url string, body interface{}) (*Request, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	httpReq, err := http.NewRequest(method, url, nil)
+	req, err := bodyReader()
+	if err != nil {
+		return nil, err
+	}
+	httpReq, err := http.NewRequest(method, url, req)
 	if err != nil {
 		return nil, err
 	}
