@@ -23,7 +23,7 @@ type HttpRequest struct {
 	ReqPerSec    int
 	MaxPoolSize  int
 	Response     *http.Response
-	Error        error
+	HttpError    error
 	Status       int
 	client       *Client
 }
@@ -51,7 +51,7 @@ func (w *HttpRequest) Get(payload interface{}) *HttpRequest {
 	resp, err := w.Client().Get(w.Url, payload, w.Headers)
 	y = w
 	y.Response = resp
-	y.Error = err
+	y.HttpError = err
 	if err != nil {
 		y.Log(payload, err)
 		return y
@@ -107,7 +107,7 @@ func (w *HttpRequest) PostJson(payload interface{}) *HttpRequest {
 	resp, err := w.Client().PostJson(w.Url, bytes.NewBufferString(string(req)), w.Headers)
 	y = w
 	y.Response = resp
-	y.Error = err
+	y.HttpError = err
 	if err != nil {
 		y.Log(payload, err)
 		return y
@@ -124,7 +124,7 @@ func (w *HttpRequest) GetJson(payload interface{}) *HttpRequest {
 	resp, err := w.Client().GetJson(w.Url, payload, w.Headers)
 	y = w
 	y.Response = resp
-	y.Error = err
+	y.HttpError = err
 	if err != nil {
 		y.Log(payload, err)
 		return y
@@ -144,7 +144,7 @@ func (w *HttpRequest) Post(payload interface{}) *HttpRequest {
 
 	y = w
 	y.Response = resp
-	y.Error = err
+	y.HttpError = err
 	if err != nil {
 		y.Log(payload, err)
 		return y
@@ -161,8 +161,8 @@ func (w *HttpRequest) AsyncGet(payload interface{}) pool.WorkFunc {
 		}
 
 		response := w.Get(payload)
-		if response.Error != nil {
-			return nil, response.Error
+		if response.HttpError != nil {
+			return nil, response.HttpError
 		}
 		return w, nil
 	}
@@ -175,8 +175,8 @@ func (w *HttpRequest) AsyncPostJson(payload interface{}) pool.WorkFunc {
 		}
 
 		response := w.PostJson(payload)
-		if response.Error != nil {
-			return nil, response.Error
+		if response.HttpError != nil {
+			return nil, response.HttpError
 		}
 		return w, nil
 	}
@@ -188,8 +188,8 @@ func (w *HttpRequest) AsyncGetJson(payload interface{}) pool.WorkFunc {
 			return nil, nil
 		}
 		response := w.GetJson(payload)
-		if response.Error != nil {
-			return nil, response.Error
+		if response.HttpError != nil {
+			return nil, response.HttpError
 		}
 		return w, nil
 	}
@@ -202,8 +202,8 @@ func (w *HttpRequest) AsyncPost(payload interface{}) pool.WorkFunc {
 		}
 
 		response := w.Post(payload)
-		if response.Error != nil {
-			return nil, response.Error
+		if response.HttpError != nil {
+			return nil, response.HttpError
 		}
 		return w, nil
 	}
